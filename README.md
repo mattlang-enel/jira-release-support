@@ -6,7 +6,12 @@ terminale:
 - **Dashboard**: scegli un componente e visualizza in tre sezioni separate i
   Bug/Defect aperti, le Release non chiuse e le Story aperte (senza Epic).
   Le tabelle sono disposte verticalmente; la tabella Bug include anche
-  l'assegnatario.
+  l'assegnatario. Ogni tabella ha un campo di ricerca e un selettore della
+  colonna da filtrare (o di tutti i campi).
+- **Estrazione per utente**: cerca in tutto il progetto le issue non chiuse
+  assegnate a una matricola o a un identificativo Jira. Il valore iniziale è
+  `A408800`, modificabile dalla dashboard; i risultati possono essere scaricati
+  in CSV.
 - **Ricerca BUG**: recupera i componenti del progetto `FBTMOBDR`, mostra una
   lista numerata per selezionarne uno e cerca solo le issue di tipo Bug o
   Defect, aperte o in lavorazione. Mostra chiave, riepilogo, stato e data di
@@ -97,3 +102,13 @@ Bug/Defect, Release e Story (gli Epic non sono inclusi). I nomi dei tipi issue
 sono quelli previsti dal progetto Jira. Le tabelle sono in righe verticali e
 mostrano conteggio, riepilogo, stato, data di creazione, priorità e link Jira;
 quella dei Bug mostra anche l'assegnatario. Le chiamate sono in sola lettura.
+
+La sezione **Estrazione issue non chiuse per utente** cerca in tutto il progetto
+con `assignee = "<identificativo>" AND statusCategory != Done`, quindi non è
+limitata al componente selezionato. La matricola iniziale `A408800` è
+modificabile. L'estrazione mostra chiave, riepilogo, tipo, stato, data di
+creazione, priorità, assegnatario e link Jira, con lo stesso filtro testuale
+per campo. Il pulsante **Scarica CSV filtrato** esporta le righe visibili dopo
+il filtro. L'identificativo deve essere riconosciuto da Jira nel campo Assignee;
+se la matricola non restituisce risultati, prova il nome utente Jira
+corrispondente.

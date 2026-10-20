@@ -15,6 +15,7 @@ from urllib.request import Request, urlopen
 
 BASE_URL = "https://jira.springlab.enel.com"
 PROJECT_KEY = "FBTMOBDR"
+DEFAULT_ASSIGNEE = "A408800"
 PAGE_SIZE = 100
 MAX_DESCRIPTION_CHARS = 5000
 
@@ -458,6 +459,66 @@ def fetch_component_dashboard(base_url, project_key, component_id, token):
                     "created": created[:10] if created else "",
                     "priority": priority.get("name", ""),
                     "assignee": assignee.get("displayName", "Non assegnato"),
+                }
+            )
+
+        start_at += len(page)
+        total = data.get("total", start_at)
+        if not page or start_at >= total:
+            return issues
+
+
+def escape_jql_string(value):
+    return value.replace("\\", "\\\\").replace('"', '\\"')
+
+
+def fetch_open_issues_for_assignee(base_url, project_key, assignee, token):
+    assignee = assignee.strip()
+    if not assignee:
+        raise RuntimeError("Inserisci una matricola o un identificativo Jira.")
+
+    jql = (
+        f'project = {project_key} AND '
+        f'assignee = "{escape_jql_string(assignee)}" AND '
+        "statusCategory != Done ORDER BY created DESC, key ASC"
+    )
+    issues = []
+    start_at = 0
+
+    while True:
+        data = jira_get_json(
+            base_url,
+            "/rest/api/2/search",
+            token,
+            {
+                "jql": jql,
+                "startAt": start_at,
+                "maxResults": PAGE_SIZE,
+                "fields": "summary,status,issuetype,created,priority,assignee",
+            },
+        )
+        if not isinstance(data, dict):
+            raise RuntimeError("La risposta Jira per l'estrazione non è nel formato previsto.")
+        page = data.get("issues")
+        if not isinstance(page, list):
+            raise RuntimeError("La risposta Jira non contiene l'elenco delle issue.")
+
+        for issue in page:
+            fields = issue.get("fields") or {}
+            status = fields.get("status") or {}
+            issue_type = fields.get("issuetype") or {}
+            priority = fields.get("priority") or {}
+            assigned_user = fields.get("assignee") or {}
+            created = fields.get("created") or ""
+            issues.append(
+                {
+                    "key": issue.get("key", ""),
+                    "summary": fields.get("summary") or "",
+                    "status": status.get("name", "Non disponibile"),
+                    "type": issue_type.get("name", "Non disponibile"),
+                    "created": created[:10] if created else "",
+                    "priority": priority.get("name", ""),
+                    "assignee": assigned_user.get("displayName", assignee),
                 }
             )
 
