@@ -1,6 +1,6 @@
 import argparse
 import ctypes
-from datetime import date
+from datetime import date, datetime, timezone
 import getpass
 import json
 import os
@@ -434,7 +434,7 @@ def fetch_component_dashboard(base_url, project_key, component_id, token):
                 "jql": jql,
                 "startAt": start_at,
                 "maxResults": PAGE_SIZE,
-                "fields": "summary,status,issuetype,created,priority,assignee",
+                "fields": "summary,status,issuetype,created,fixVersions,assignee",
             },
         )
         if not isinstance(data, dict):
@@ -447,17 +447,21 @@ def fetch_component_dashboard(base_url, project_key, component_id, token):
             fields = issue.get("fields") or {}
             status = fields.get("status") or {}
             issue_type = fields.get("issuetype") or {}
-            priority = fields.get("priority") or {}
             assignee = fields.get("assignee") or {}
             created = fields.get("created") or ""
+            fix_versions = fields.get("fixVersions") or []
             issues.append(
                 {
                     "key": issue.get("key", ""),
                     "summary": fields.get("summary") or "",
                     "status": status.get("name", "Non disponibile"),
                     "type": issue_type.get("name", "Non disponibile"),
-                    "created": created[:10] if created else "",
-                    "priority": priority.get("name", ""),
+                    "elapsed_days": elapsed_days(created),
+                    "fix_version": ", ".join(
+                        version.get("name", "")
+                        for version in fix_versions
+                        if isinstance(version, dict) and version.get("name")
+                    ),
                     "assignee": assignee.get("displayName", "Non assegnato"),
                 }
             )
@@ -466,6 +470,21 @@ def fetch_component_dashboard(base_url, project_key, component_id, token):
         total = data.get("total", start_at)
         if not page or start_at >= total:
             return issues
+
+
+def elapsed_days(created, now=None):
+    if not created:
+        return "N/D"
+    normalized = created.replace("Z", "+00:00")
+    if len(normalized) >= 5 and normalized[-5] in "+-" and normalized[-4:].isdigit():
+        normalized = normalized[:-2] + ":" + normalized[-2:]
+    created_at = datetime.fromisoformat(normalized)
+    if created_at.tzinfo is None:
+        created_at = created_at.replace(tzinfo=timezone.utc)
+    current_time = now or datetime.now(timezone.utc)
+    if current_time.tzinfo is None:
+        current_time = current_time.replace(tzinfo=timezone.utc)
+    return (current_time.astimezone(timezone.utc) - created_at.astimezone(timezone.utc)).days
 
 
 def escape_jql_string(value):
@@ -494,7 +513,7 @@ def fetch_open_issues_for_assignee(base_url, project_key, assignee, token):
                 "jql": jql,
                 "startAt": start_at,
                 "maxResults": PAGE_SIZE,
-                "fields": "summary,status,issuetype,created,priority,assignee",
+                "fields": "summary,status,issuetype,created,fixVersions,assignee",
             },
         )
         if not isinstance(data, dict):
@@ -507,17 +526,21 @@ def fetch_open_issues_for_assignee(base_url, project_key, assignee, token):
             fields = issue.get("fields") or {}
             status = fields.get("status") or {}
             issue_type = fields.get("issuetype") or {}
-            priority = fields.get("priority") or {}
             assigned_user = fields.get("assignee") or {}
             created = fields.get("created") or ""
+            fix_versions = fields.get("fixVersions") or []
             issues.append(
                 {
                     "key": issue.get("key", ""),
                     "summary": fields.get("summary") or "",
                     "status": status.get("name", "Non disponibile"),
                     "type": issue_type.get("name", "Non disponibile"),
-                    "created": created[:10] if created else "",
-                    "priority": priority.get("name", ""),
+                    "elapsed_days": elapsed_days(created),
+                    "fix_version": ", ".join(
+                        version.get("name", "")
+                        for version in fix_versions
+                        if isinstance(version, dict) and version.get("name")
+                    ),
                     "assignee": assigned_user.get("displayName", assignee),
                 }
             )

@@ -21,25 +21,30 @@ st.caption(f"Progetto {PROJECT_KEY} · sola lettura")
 
 def render_filtered_table(title, rows, key_prefix):
     searchable_columns = [column for column in rows[0] if column != "Link"]
-    selected_column = st.selectbox(
-        f"Campo in {title}",
-        ["Tutti i campi", *searchable_columns],
-        key=f"{key_prefix}_column",
-    )
-    search_text = st.text_input(
-        f"Cerca in {title}",
-        placeholder="Es. chiave, riepilogo, stato...",
-        key=f"{key_prefix}_query",
-    ).strip().casefold()
+    column_weights = [
+        2.4 if column == "Riepilogo" else
+        1.5 if column == "Assegnatario" else
+        1.2
+        for column in searchable_columns
+    ]
+    filter_columns = st.columns(column_weights, gap="small")
+    filters = {}
+    for column_name, filter_column in zip(searchable_columns, filter_columns):
+        with filter_column:
+            st.markdown(f"**{column_name}**")
+            filters[column_name] = st.text_input(
+                f"Filtra {column_name} in {title}",
+                placeholder="Filtra...",
+                key=f"{key_prefix}_{column_name}",
+                label_visibility="collapsed",
+            ).strip().casefold()
 
     filtered_rows = [
         row
         for row in rows
-        if not search_text
-        or any(
-            search_text in str(row[column]).casefold()
-            for column in searchable_columns
-            if selected_column == "Tutti i campi" or column == selected_column
+        if all(
+            not search_text or search_text in str(row[column]).casefold()
+            for column, search_text in filters.items()
         )
     ]
     st.caption(f"Mostrate {len(filtered_rows)} di {len(rows)} issue")
@@ -117,8 +122,8 @@ if components:
                     "Chiave": issue["key"],
                     "Riepilogo": issue["summary"],
                     "Stato": issue["status"],
-                    "Creata": issue["created"],
-                    "Priorità": issue["priority"],
+                    "Elapsed (giorni)": issue["elapsed_days"],
+                    "Fix Version": issue["fix_version"],
                     **({"Assegnatario": issue["assignee"]} if title == "Bug aperti" else {}),
                     "Link": f"{BASE_URL.rstrip('/')}/browse/{issue['key']}",
                 }
@@ -165,8 +170,8 @@ if (
                 "Riepilogo": issue["summary"],
                 "Tipo": issue["type"],
                 "Stato": issue["status"],
-                "Creata": issue["created"],
-                "Priorità": issue["priority"],
+                "Elapsed (giorni)": issue["elapsed_days"],
+                "Fix Version": issue["fix_version"],
                 "Assegnatario": issue["assignee"],
                 "Link": f"{BASE_URL.rstrip('/')}/browse/{issue['key']}",
             }
